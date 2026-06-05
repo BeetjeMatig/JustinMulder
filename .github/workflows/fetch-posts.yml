@@ -1,0 +1,34 @@
+name: Refresh Substack posts
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # daily at 7am UTC
+  push:
+    branches: [main]
+  workflow_dispatch:       # lets you trigger it manually from the Actions tab
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch posts from Substack
+        run: |
+          curl -sf \
+            "https://justinmulder.substack.com/api/v1/posts?limit=50" \
+            -H "Accept: application/json" \
+            -o assets/posts.json
+        # If the fetch fails (network hiccup, Substack down) the step errors
+        # and the workflow stops — the previous posts.json is left untouched.
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/posts.json
+          git diff --staged --quiet || git commit -m "chore: refresh Substack posts"
+          git push

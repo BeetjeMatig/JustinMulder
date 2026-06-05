@@ -209,7 +209,8 @@ function Blog({ data }) {
   const [active, setActive] = useState("All");
 
   useEffect(() => {
-    fetch("assets/posts.json")
+    const url = data.substackWorker || "assets/posts.json";
+    fetch(url)
       .then((r) => (r.ok ? r.json() : []))
       .then((items) => {
         if (!Array.isArray(items) || items.length === 0) return;

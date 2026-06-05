@@ -2,6 +2,7 @@
    Edit freely — this is just sample data. */
 window.PORTFOLIO = {
   substackUrl: "https://justinmulder.substack.com",
+  substackWorker: "https://blue-frost-72df.justinmulder0808.workers.dev",
 
   /*
    * postTags — map a Substack post slug to an array of your own tags.

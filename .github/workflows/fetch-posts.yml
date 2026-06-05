@@ -2,10 +2,13 @@ name: Refresh Substack posts
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # daily at 7am UTC
+    - cron: '0 7 * * *'
   push:
     branches: [main]
-  workflow_dispatch:       # lets you trigger it manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   fetch:
@@ -18,12 +21,15 @@ jobs:
 
       - name: Fetch posts from Substack
         run: |
-          curl -sf \
+          HTTP=$(curl -sL -o assets/posts.json -w "%{http_code}" \
             "https://justinmulder.substack.com/api/v1/posts?limit=50" \
-            -H "Accept: application/json" \
-            -o assets/posts.json
-        # If the fetch fails (network hiccup, Substack down) the step errors
-        # and the workflow stops — the previous posts.json is left untouched.
+            -H "Accept: application/json")
+          echo "HTTP status: $HTTP"
+          if [ "$HTTP" -lt 200 ] || [ "$HTTP" -ge 300 ]; then
+            echo "--- Response body ---"
+            cat assets/posts.json
+            exit 1
+          fi
 
       - name: Commit if changed
         run: |

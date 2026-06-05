@@ -43,31 +43,44 @@ function CoverPattern({ kind, color }) {
 }
 
 /* ================= HERO ================= */
-function Hero({ data, go }) {
+function Hero({ data, go, lastfm }) {
   return (
     <section className="screen hero">
       <div className="wrap">
         <div className="hero-grid">
           <div className="hero-text">
-            <span className="hero-kicker"><span className="live"></span> Available for new projects</span>
+            <span className="hero-kicker">✦ this is just for fun</span>
             <h1>
-              <span className="ln"><span>Hi, I'm Justin —</span></span>
+              <span className="ln"><span>Hi, I'm Justin.</span></span>
               <span className="ln"><span>I make data <span className="hl">talk</span>.</span></span>
             </h1>
             <p className="hero-lead">
-              <b>Data Science</b> graduate turned <b>Conversation Designer</b>. I live where numbers meet language —
-              building models that predict, and dialogues that actually sound human.
+              <b>Data Science</b> graduate working as a <b>Conversation Designer</b>. I live where numbers meet language.
             </p>
             <div className="chips">
               {data.chips.map((c, i) => (
                 <span className="chip" key={i} style={{ "--chip-c": c.c }}>{c.t}</span>
               ))}
             </div>
+            {lastfm && (
+              <a className="now-playing" href={lastfm.url || "#"} target="_blank" rel="noopener noreferrer">
+                <span className="np-notes" aria-hidden="true">
+                  <span className="np-note">♩</span>
+                  <span className="np-note">♪</span>
+                  <span className="np-note">♫</span>
+                </span>
+                {lastfm.nowPlaying
+                  ? <span className="np-dot" />
+                  : <span className="np-icon">♪</span>}
+                <span className="np-label">{lastfm.nowPlaying ? "now playing" : "last heard"}</span>
+                <span className="np-track">{lastfm.name} — {lastfm.artist}</span>
+              </a>
+            )}
             <div className="hero-cta">
               <button className="btn primary" onClick={() => go("projects")}>
-                See my work <span className="arrow"><Icon name="arrow" size={18} /></span>
+                Take a look <span className="arrow"><Icon name="arrow" size={18} /></span>
               </button>
-              <button className="btn" onClick={() => go("blog")}>Read the blog</button>
+              <button className="btn" onClick={() => go("blog")}>Read my Substack</button>
             </div>
           </div>
 
@@ -78,7 +91,7 @@ function Hero({ data, go }) {
               <div className="portrait-placeholder">
                 <span className="portrait-initials">JM</span>
               </div>
-              <span className="portrait-tag">📍 based in your city</span>
+              <span className="portrait-tag">📍 based in Groningen, NL</span>
             </div>
           </div>
         </div>
@@ -103,10 +116,16 @@ function Hero({ data, go }) {
 }
 
 /* ================= PROJECTS ================= */
-function Projects({ data }) {
+function Projects({ data, setProjectPage }) {
   const cats = ["All", ...Array.from(new Set(data.projects.map((p) => p.cat)))];
   const [active, setActive] = useState("All");
   const list = active === "All" ? data.projects : data.projects.filter((p) => p.cat === active);
+
+  function handleClick(p) {
+    if (p.detail) { setProjectPage(p); }
+    else if (p.url) { window.open(p.url, "_blank", "noopener"); }
+  }
+
   return (
     <section className="screen">
       <div className="wrap">
@@ -121,23 +140,72 @@ function Projects({ data }) {
           ))}
         </div>
         <div className="proj-grid">
-          {list.map((p, i) => (
-            <article className="proj" key={p.title} style={{ animationDelay: i * 0.06 + "s" }}>
-              <div className="proj-go"><Icon name="arrowUR" size={18} /></div>
-              <div className="proj-cover">
-                <div className="pattern"><CoverPattern kind={p.kind} color={p.color} /></div>
-                <span className="proj-emoji">{p.emoji}</span>
-              </div>
-              <div className="proj-body">
-                <span className="proj-cat">{p.cat}</span>
-                <h3>{p.title}</h3>
-                <p>{p.desc}</p>
-                <div className="proj-tags">
-                  {p.tags.map((t) => <span className="proj-tag" key={t}>{t}</span>)}
+          {list.map((p, i) => {
+            const clickable = !!(p.detail || p.url);
+            return (
+              <article className="proj" key={p.title}
+                style={{ animationDelay: i * 0.06 + "s", cursor: clickable ? "pointer" : "default" }}
+                onClick={() => clickable && handleClick(p)}>
+                {clickable && (
+                  <div className="proj-go">
+                    <Icon name={p.detail ? "arrow" : "arrowUR"} size={18} />
+                  </div>
+                )}
+                <div className="proj-cover">
+                  <div className="pattern"><CoverPattern kind={p.kind} color={p.color} /></div>
+                  <span className="proj-emoji">{p.emoji}</span>
                 </div>
-              </div>
-            </article>
+                <div className="proj-body">
+                  <span className="proj-cat">{p.cat}</span>
+                  <h3>{p.title}</h3>
+                  <p>{p.desc}</p>
+                  <div className="proj-tags">
+                    {p.tags.map((t) => <span className="proj-tag" key={t}>{t}</span>)}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ================= PROJECT DETAIL ================= */
+function ProjectDetail({ project: p, onBack }) {
+  return (
+    <section className="screen">
+      <div className="wrap">
+        <button className="back-btn" onClick={onBack}>
+          <span style={{ display:"inline-flex", transform:"rotate(180deg)" }}><Icon name="arrow" size={16} /></span> Back to projects
+        </button>
+        <div className="pd-cover">
+          <CoverPattern kind={p.kind} color={p.color} />
+          <span className="pd-emoji">{p.emoji}</span>
+        </div>
+        <div className="pd-body">
+          <span className="eyebrow">{p.cat}</span>
+          <h1 className="pd-title">{p.title}</h1>
+          <div className="proj-tags" style={{ marginTop: 16 }}>
+            {p.tags.map((t) => <span className="proj-tag" key={t}>{t}</span>)}
+          </div>
+          <p className="pd-intro">{p.detail.intro || p.desc}</p>
+          {p.detail.sections?.map((s, i) => (
+            <div className="pd-section" key={i}>
+              <h3>{s.heading}</h3>
+              <p>{s.body}</p>
+            </div>
           ))}
+          {p.detail.links?.length > 0 && (
+            <div className="pd-links">
+              {p.detail.links.map((l, i) => (
+                <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="btn primary">
+                  <Icon name={l.icon || "arrowUR"} size={16} /> {l.label}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -318,4 +386,54 @@ function Footer() {
   );
 }
 
-Object.assign(window, { Icon, Hero, Projects, Experience, Blog, Footer });
+/* ================= ELSEWHERE ================= */
+function Elsewhere({ data, lastfm }) {
+  return (
+    <section className="screen">
+      <div className="wrap">
+        <div className="sec-head">
+          <span className="eyebrow">Around the internet</span>
+          <h2>Elsewhere</h2>
+          <p className="sub">Other corners of the web where I exist. No professional agenda, just the things I'm into.</p>
+        </div>
+        <div className="el-grid">
+          {data.elsewhere.map((e, i) => {
+            const isLastfm = e.platform === "Last.fm";
+            const hasArt = isLastfm && lastfm?.art;
+            return (
+              <a key={i} className={`el-card${isLastfm && lastfm ? " el-card--live" : ""}`}
+                href={e.url} target="_blank" rel="noopener noreferrer"
+                style={{ animationDelay: i * 0.05 + "s" }}>
+                <div className="el-cover" style={hasArt
+                  ? { backgroundImage: `url(${lastfm.art})`, backgroundSize: "cover", backgroundPosition: "center" }
+                  : { background: e.color }}>
+                  {!hasArt && <span className="el-emoji">{e.emoji}</span>}
+                  {isLastfm && lastfm?.nowPlaying && (
+                    <span className="el-now-playing"><span className="el-np-dot" />now playing</span>
+                  )}
+                </div>
+                <div className="el-body">
+                  <div className="el-top">
+                    <span className="el-platform">{e.platform}</span>
+                    <span className="el-go"><Icon name="arrowUR" size={14} /></span>
+                  </div>
+                  <span className="el-handle">@{e.handle}</span>
+                  {isLastfm && lastfm ? (
+                    <div className="el-track">
+                      <span className="el-track-name">{lastfm.name}</span>
+                      <span className="el-track-artist">{lastfm.artist}</span>
+                    </div>
+                  ) : (
+                    <p className="el-note">{e.note}</p>
+                  )}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+Object.assign(window, { Icon, Hero, Projects, ProjectDetail, Experience, Blog, Elsewhere, Footer });

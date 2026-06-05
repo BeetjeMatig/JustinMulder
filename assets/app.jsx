@@ -1,11 +1,73 @@
 /* app.jsx — shell: nav, animated tab pill, dark mode, tweaks. */
 const { useState, useEffect, useRef, useLayoutEffect } = React;
 
+function useLastfm(user, apiKey) {
+  const [track, setTrack] = useState(null);
+  useEffect(() => {
+    if (!user || !apiKey || apiKey === "YOUR_API_KEY_HERE") return;
+    fetch(`https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${encodeURIComponent(user)}&api_key=${encodeURIComponent(apiKey)}&format=json&limit=1`)
+      .then(r => r.json())
+      .then(d => {
+        const items = d.recenttracks?.track;
+        const item = Array.isArray(items) ? items[0] : items;
+        if (!item) return;
+        const art = item.image?.find(i => i.size === "extralarge")?.["#text"] || "";
+        setTrack({
+          name: item.name,
+          artist: item.artist["#text"],
+          nowPlaying: !!item["@attr"]?.nowplaying,
+          url: item.url || null,
+          // Last.fm returns a generic grey placeholder for tracks without art — filter it out
+          art: art && !art.includes("2a96cbd8b46e442fc41c2b86b821562f") ? art : null,
+        });
+      })
+      .catch(() => {});
+  }, [user, apiKey]);
+  return track;
+}
+
+function NavTooltip({ text, children }) {
+  const [visible, setVisible] = useState(false);
+  const [displayed, setDisplayed] = useState("");
+  const timer = useRef(null);
+
+  const show = () => {
+    setVisible(true);
+    setDisplayed("");
+    let i = 0;
+    timer.current = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(timer.current);
+    }, 28);
+  };
+
+  const hide = () => {
+    clearInterval(timer.current);
+    setVisible(false);
+    setDisplayed("");
+  };
+
+  return (
+    <div className="nav-tip-wrap" onMouseEnter={show} onMouseLeave={hide}>
+      {children}
+      {visible && (
+        <div className="nav-tip">
+          <span className="nav-tip-arrow" />
+          {displayed}
+          {displayed.length < text.length && <span className="nav-tip-cursor">▌</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   ["home", "Home"],
   ["projects", "Projects"],
   ["experience", "Experience"],
   ["blog", "Blog"],
+  ["elsewhere", "Elsewhere"],
 ];
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -27,6 +89,7 @@ const BOLD = { subtle: "0.45", balanced: "1", loud: "1" };
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState("home");
+  const [projectPage, setProjectPage] = useState(null);
   const tabRefs = useRef({});
   const [pill, setPill] = useState({ left: 5, width: 0, opacity: 0 });
 
@@ -55,11 +118,13 @@ function App() {
   }, [tab]);
 
   const go = (next) => {
+    setProjectPage(null);
     setTab(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const data = window.PORTFOLIO;
+  const lastfm = useLastfm(data.lastfmUser, data.lastfmApiKey);
 
   return (
     <div className="app">
@@ -81,12 +146,16 @@ function App() {
           </div>
 
           <div className="nav-actions">
-            <button className="icon-btn" aria-label="Customize" onClick={() => window.postMessage({ type: "__activate_edit_mode" }, "*")}>
-              <Icon name="sliders" />
-            </button>
-            <button className="icon-btn" aria-label="Toggle theme" onClick={() => setTweak("dark", !t.dark)}>
-              <Icon name={t.dark ? "sun" : "moon"} />
-            </button>
+            <NavTooltip text="If you think I am a bad designer">
+              <button className="icon-btn" aria-label="Customize" onClick={() => window.postMessage({ type: "__activate_edit_mode" }, "*")}>
+                <Icon name="sliders" />
+              </button>
+            </NavTooltip>
+            <NavTooltip text="If you looked at screens enough today">
+              <button className="icon-btn" aria-label="Toggle theme" onClick={() => setTweak("dark", !t.dark)}>
+                <Icon name={t.dark ? "sun" : "moon"} />
+              </button>
+            </NavTooltip>
           </div>
         </div>
       </nav>
@@ -97,11 +166,17 @@ function App() {
         ))}
       </div>
 
-      <main key={tab}>
-        {tab === "home" && <Hero data={data} go={go} />}
-        {tab === "projects" && <Projects data={data} />}
-        {tab === "experience" && <Experience data={data} />}
-        {tab === "blog" && <Blog data={data} />}
+      <main key={projectPage ? projectPage.title : tab}>
+        {projectPage
+          ? <ProjectDetail project={projectPage} onBack={() => { setProjectPage(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+          : <>
+              {tab === "home" && <Hero data={data} go={go} lastfm={lastfm} />}
+              {tab === "projects" && <Projects data={data} setProjectPage={(p) => { setProjectPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
+              {tab === "experience" && <Experience data={data} />}
+              {tab === "blog" && <Blog data={data} />}
+              {tab === "elsewhere" && <Elsewhere data={data} lastfm={lastfm} />}
+            </>
+        }
       </main>
 
       <Footer />
